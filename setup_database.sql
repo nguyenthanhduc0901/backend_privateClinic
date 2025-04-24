@@ -307,7 +307,9 @@ CREATE TABLE appointment_lists (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (appointment_date, order_number)
+    UNIQUE (appointment_date, order_number),
+    UNIQUE (patient_id, appointment_date), -- Một bệnh nhân chỉ có thể đặt một lịch hẹn trong một ngày
+    UNIQUE (appointment_date, appointment_time) -- Không thể có hai lịch hẹn cùng thởi điểm
 );
 
 CREATE TABLE medical_records (
@@ -687,9 +689,9 @@ INSERT INTO permissions (name, description) VALUES
 -- Chèn dữ liệu vào bảng staff (3 nhân viên mẫu: 1 admin, 1 bác sĩ, 1 tiếp tân)
 -- Sử dụng mật khẩu plain text để dễ test
 INSERT INTO staff (username, password, full_name, email, phone, address, role_id, is_active) VALUES
-    ('admin01', 'admin123', 'Nguyễn Admin', 'admin@clinic.com', '0901112233', '123 Đường Láng, Hà Nội', 1, true),
-    ('doctor01', 'doctor123', 'Trần Bác Sĩ', 'doctor@clinic.com', '0902223344', '45 Nguyễn Huệ, TP.HCM', 2, true),
-    ('receptionist01', 'staff123', 'Lê Tiếp Tân', 'receptionist@clinic.com', '0903334455', '78 Lê Lợi, Đà Nẵng', 3, true);
+    ('admin01', '$2b$10$2GpZtMBPwAgi1n.od4bFR.HFogpKkNH9Pg5.8ngbBfg/LuRQDTGIq', 'Nguyễn Admin', 'admin@clinic.com', '0901112233', '123 Đường Láng, Hà Nội', 1, true),
+    ('doctor01', '$2b$10$2GpZtMBPwAgi1n.od4bFR.HFogpKkNH9Pg5.8ngbBfg/LuRQDTGIq', 'Trần Bác Sĩ', 'doctor@clinic.com', '0902223344', '45 Nguyễn Huệ, TP.HCM', 2, true),
+    ('receptionist01', '$2b$10$2GpZtMBPwAgi1n.od4bFR.HFogpKkNH9Pg5.8ngbBfg/LuRQDTGIq', 'Lê Tiếp Tân', 'receptionist@clinic.com', '0903334455', '78 Lê Lợi, Đà Nẵng', 3, true);
 
 -- Phân quyền cho vai trò admin - có tất cả quyền
 INSERT INTO role_permissions (role_id, permission_id)

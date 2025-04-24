@@ -133,6 +133,22 @@ class Appointment {
   }
   
   /**
+   * Lấy thông tin giới hạn lịch hẹn
+   * @returns {Promise<Object>} Thông tin giới hạn
+   */
+  static async getAppointmentLimits() {
+    // Lấy số lượng tối đa bệnh nhân mỗi ngày
+    const maxPatients = await this.getMaxPatientsPerDay();
+    
+    // Lấy các thông tin hạn chế khác nếu cần
+    
+    return {
+      maxPatientsPerDay: maxPatients,
+      avgExaminationTime: 30, // Thời gian khám trung bình (phút)
+    };
+  }
+  
+  /**
    * Tạo lịch hẹn mới
    * @param {Object} data - Dữ liệu lịch hẹn
    * @returns {Promise<Object>} Lịch hẹn mới tạo
@@ -183,6 +199,27 @@ class Appointment {
           error.hint
         );
       }
+      
+      // Xử lý lỗi ràng buộc duy nhất
+      if (error.code === '23505') {
+        // Xác định loại ràng buộc duy nhất bị vi phạm
+        if (error.constraint === 'appointment_lists_patient_id_appointment_date_key') {
+          throw new DatabaseError(
+            'Bệnh nhân đã có lịch hẹn trong ngày này',
+            'Mỗi bệnh nhân chỉ được đặt một lịch hẹn trong một ngày',
+            'Vui lòng chọn ngày khác hoặc hủy lịch hẹn cũ'
+          );
+        }
+        
+        if (error.constraint === 'appointment_lists_appointment_date_appointment_time_key') {
+          throw new DatabaseError(
+            'Thời gian đã có lịch hẹn khác',
+            `Thời gian ${appointment_time} ngày ${appointment_date} đã có lịch hẹn khác`,
+            'Vui lòng chọn thời gian khác'
+          );
+        }
+      }
+      
       throw error;
     }
   }
@@ -196,11 +233,11 @@ class Appointment {
   static async update(id, data) {
     try {
       // Kiểm tra lịch hẹn tồn tại
-      await this.findById(id);
+      const currentAppointment = await this.findById(id);
       
       const { 
-        appointment_date, 
-        appointment_time, 
+        appointment_date = currentAppointment.appointment_date, 
+        appointment_time = currentAppointment.appointment_time, 
         status, 
         notes 
       } = data;
@@ -234,6 +271,27 @@ class Appointment {
           error.hint
         );
       }
+      
+      // Xử lý lỗi ràng buộc duy nhất
+      if (error.code === '23505') {
+        // Xác định loại ràng buộc duy nhất bị vi phạm
+        if (error.constraint === 'appointment_lists_patient_id_appointment_date_key') {
+          throw new DatabaseError(
+            'Bệnh nhân đã có lịch hẹn trong ngày này',
+            'Mỗi bệnh nhân chỉ được đặt một lịch hẹn trong một ngày',
+            'Vui lòng chọn ngày khác hoặc hủy lịch hẹn cũ'
+          );
+        }
+        
+        if (error.constraint === 'appointment_lists_appointment_date_appointment_time_key') {
+          throw new DatabaseError(
+            'Thời gian đã có lịch hẹn khác',
+            `Thời gian ${appointment_time} ngày ${appointment_date} đã có lịch hẹn khác`,
+            'Vui lòng chọn thời gian khác'
+          );
+        }
+      }
+      
       throw error;
     }
   }
