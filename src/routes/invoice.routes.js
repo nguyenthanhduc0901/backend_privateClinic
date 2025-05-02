@@ -11,10 +11,6 @@ const invoiceValidation = [
     .notEmpty().withMessage('ID hồ sơ bệnh án không được trống')
     .isInt().withMessage('ID hồ sơ bệnh án phải là số nguyên'),
   
-  body('examination_fee')
-    .notEmpty().withMessage('Phí khám không được trống')
-    .isFloat({ min: 0 }).withMessage('Phí khám phải là số dương'),
-  
   body('status')
     .optional()
     .isIn(['pending', 'paid', 'cancelled']).withMessage('Trạng thái không hợp lệ'),
@@ -25,10 +21,6 @@ const invoiceValidation = [
 
 // Validation cho cập nhật hóa đơn
 const updateInvoiceValidation = [
-  body('examination_fee')
-    .optional()
-    .isFloat({ min: 0 }).withMessage('Phí khám phải là số dương'),
-  
   body('status')
     .optional()
     .isIn(['pending', 'paid', 'cancelled']).withMessage('Trạng thái không hợp lệ'),

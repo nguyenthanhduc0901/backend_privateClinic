@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const Prescription = require('./prescription.model');
+const Setting = require('./setting.model');
 const { NotFoundError, DatabaseError } = require('../utils/apiError');
 
 /**
@@ -187,10 +188,12 @@ class Invoice {
       const { 
         medical_record_id, 
         staff_id, 
-        examination_fee,
         status = 'pending',
         notes 
       } = data;
+      
+      // Lấy phí khám từ settings thay vì từ input
+      const examination_fee = await Setting.getValue('examination_fee', 30000);
       
       // Tính tổng tiền thuốc từ đơn thuốc
       const medicineFee = await Prescription.calculateTotalMedicineFee(medical_record_id);
@@ -235,26 +238,23 @@ class Invoice {
     await this.findById(id);
     
     const { 
-      examination_fee,
       status,
       notes 
     } = data;
     
-    // Cập nhật hóa đơn
+    // Cập nhật hóa đơn (loại bỏ examination_fee khỏi các trường có thể cập nhật)
     const query = `
       UPDATE invoices
       SET 
-        examination_fee = COALESCE($1, examination_fee),
-        status = COALESCE($2, status),
-        notes = COALESCE($3, notes)
-      WHERE id = $4
+        status = COALESCE($1, status),
+        notes = COALESCE($2, notes)
+      WHERE id = $3
       RETURNING id, medical_record_id, staff_id,
                 examination_fee, medicine_fee, total_fee,
                 payment_date, status, notes, created_at, updated_at
     `;
     
     const { rows } = await db.query(query, [
-      examination_fee,
       status,
       notes,
       id
