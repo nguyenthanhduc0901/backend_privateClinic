@@ -12,31 +12,23 @@ class Setting {
    * @returns {Promise<Array>} Danh sách cài đặt
    */
   static async findAll(options = {}) {
-    const { search = '', page = 1, limit = 10 } = options;
+    const { page = 1, limit = 10 } = options;
     const offset = (page - 1) * limit;
     
     const query = `
       SELECT 
-        id, key, value, description, editable, created_at, updated_at
+        id, key, value, description, created_at, updated_at
       FROM settings
-      WHERE 
-        key ILIKE $1 OR
-        description ILIKE $1
       ORDER BY key
-      LIMIT $2 OFFSET $3
+      LIMIT $1 OFFSET $2
     `;
     
     const countQuery = `
       SELECT COUNT(*) FROM settings
-      WHERE 
-        key ILIKE $1 OR
-        description ILIKE $1
     `;
     
-    const searchParam = `%${search}%`;
-    
-    const { rows } = await db.query(query, [searchParam, limit, offset]);
-    const countResult = await db.query(countQuery, [searchParam]);
+    const { rows } = await db.query(query, [limit, offset]);
+    const countResult = await db.query(countQuery);
     const total = parseInt(countResult.rows[0].count);
     
     return {
@@ -58,7 +50,7 @@ class Setting {
   static async findById(id) {
     const query = `
       SELECT 
-        id, key, value, description, editable, created_at, updated_at
+        id, key, value, description, created_at, updated_at
       FROM settings
       WHERE id = $1
     `;
@@ -80,7 +72,7 @@ class Setting {
   static async findByKey(key) {
     const query = `
       SELECT 
-        id, key, value, description, editable, created_at, updated_at
+        id, key, value, description, created_at, updated_at
       FROM settings
       WHERE key = $1
     `;
@@ -119,26 +111,30 @@ class Setting {
    */
   static async create(data) {
     try {
-      const { key, value, description, editable = true } = data;
+      // Kiểm tra trùng key
+      try {
+        const existingSetting = await this.findByKey(data.key);
+        if (existingSetting) {
+          throw new ValidationError('Key đã tồn tại');
+        }
+      } catch (error) {
+        if (!(error instanceof NotFoundError)) {
+          throw error;
+        }
+      }
+      
+      const { key, value, description } = data;
       
       const query = `
-        INSERT INTO settings (key, value, description, editable)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, key, value, description, editable, created_at, updated_at
+        INSERT INTO settings (key, value, description)
+        VALUES ($1, $2, $3)
+        RETURNING id, key, value, description, created_at, updated_at
       `;
       
-      const { rows } = await db.query(query, [key, value, description, editable]);
+      const { rows } = await db.query(query, [key, value, description]);
       
       return rows[0];
     } catch (error) {
-      // Lỗi unique constraint (key trùng)
-      if (error.code === '23505' && error.constraint === 'settings_key_key') {
-        throw new ValidationError(
-          'Key cài đặt đã tồn tại',
-          'Vui lòng sử dụng key khác'
-        );
-      }
-      
       throw error;
     }
   }
@@ -153,31 +149,26 @@ class Setting {
     // Kiểm tra cài đặt tồn tại
     const setting = await this.findById(id);
     
-    // Kiểm tra nếu cài đặt không được phép chỉnh sửa
-    if (!setting.editable) {
-      throw new ValidationError(
-        'Cài đặt này không được phép chỉnh sửa'
-      );
+    // Cài đặt không cho phép sửa đổi
+    if (data.key && data.key !== setting.key) {
+      throw new ValidationError('Không thể thay đổi key của cài đặt');
     }
     
     const { value, description } = data;
     
-    try {
-      const query = `
-        UPDATE settings
-        SET 
-          value = COALESCE($1, value),
-          description = COALESCE($2, description)
-        WHERE id = $3
-        RETURNING id, key, value, description, editable, created_at, updated_at
-      `;
-      
-      const { rows } = await db.query(query, [value, description, id]);
-      
-      return rows[0];
-    } catch (error) {
-      throw error;
-    }
+    const query = `
+      UPDATE settings
+      SET
+        value = COALESCE($1, value),
+        description = COALESCE($2, description),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING id, key, value, description, created_at, updated_at
+    `;
+    
+    const { rows } = await db.query(query, [value, description, id]);
+    
+    return rows[0];
   }
   
   /**
@@ -187,30 +178,21 @@ class Setting {
    * @returns {Promise<Object>} Cài đặt sau khi cập nhật
    */
   static async updateValue(key, value) {
-    try {
-      // Tìm cài đặt theo key
-      const setting = await this.findByKey(key);
-      
-      // Kiểm tra nếu cài đặt không được phép chỉnh sửa
-      if (!setting.editable) {
-        throw new ValidationError(
-          'Cài đặt này không được phép chỉnh sửa'
-        );
-      }
-      
-      const query = `
-        UPDATE settings
-        SET value = $1
-        WHERE key = $2
-        RETURNING id, key, value, description, editable, created_at, updated_at
-      `;
-      
-      const { rows } = await db.query(query, [value, key]);
-      
-      return rows[0];
-    } catch (error) {
-      throw error;
-    }
+    // Kiểm tra cài đặt tồn tại
+    const setting = await this.findByKey(key);
+    
+    const query = `
+      UPDATE settings
+      SET
+        value = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE key = $2
+      RETURNING id, key, value, description, created_at, updated_at
+    `;
+    
+    const { rows } = await db.query(query, [value, key]);
+    
+    return rows[0];
   }
   
   /**
@@ -222,14 +204,11 @@ class Setting {
     // Kiểm tra cài đặt tồn tại
     const setting = await this.findById(id);
     
-    // Kiểm tra nếu cài đặt không được phép chỉnh sửa
-    if (!setting.editable) {
-      throw new ValidationError(
-        'Cài đặt này không được phép xóa'
-      );
-    }
+    const query = `
+      DELETE FROM settings
+      WHERE id = $1
+    `;
     
-    const query = 'DELETE FROM settings WHERE id = $1';
     await db.query(query, [id]);
     
     return true;
