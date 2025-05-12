@@ -91,7 +91,7 @@ Thiết lập các môi trường kiểm thử sau:
 ```json
 {
   "username": "admin01",
-  "password": "123456"
+  "password": "123"
 }
 ```
 
@@ -160,7 +160,7 @@ Authorization: Bearer <jwt_token>
 **Input**:
 ```json
 {
-  "currentPassword": "123456",
+  "currentPassword": "123",
   "newPassword": "new123456"
 }
 ```

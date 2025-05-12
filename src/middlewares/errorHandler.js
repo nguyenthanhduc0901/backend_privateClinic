@@ -2,46 +2,26 @@
  * Middleware xử lý lỗi toàn cục
  */
 const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
-  
-  // Xử lý lỗi PostgreSQL
-  if (err.code && err.code.startsWith('P')) {
-    // Xử lý lỗi theo mã lỗi của PostgreSQL
-    if (err.code === 'P0001') {
-      // Custom error từ trigger 
-      return res.status(400).json({ 
-        error: 'Bad Request',
-        message: err.message || 'Database constraint violation',
-        detail: err.detail,
-        hint: err.hint
-      });
-    }
-    
-    // Lỗi vi phạm ràng buộc khóa ngoại
-    if (err.code === '23503') {
-      return res.status(400).json({ 
-        error: 'Bad Request',
-        message: 'Foreign key constraint violation',
-        detail: err.detail
-      });
-    }
-    
-    // Lỗi vi phạm ràng buộc khóa chính/unique
-    if (err.code === '23505') {
-      return res.status(400).json({ 
-        error: 'Bad Request',
-        message: 'Unique constraint violation',
-        detail: err.detail
-      });
-    }
-    
-    // Lỗi vi phạm ràng buộc check
-    if (err.code === '23514') {
-      return res.status(400).json({ 
-        error: 'Bad Request',
-        message: 'Check constraint violation',
-        detail: err.detail
-      });
+  console.dir(err, { depth: null });
+
+  const pgCode =
+    err.code || err.parent?.code || err.original?.code || null;
+
+  if (pgCode) {
+    switch (pgCode) {
+      case 'P0001':   // Trigger raise
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Database constraint violation',
+          detail: err.parent?.detail || err.detail,
+          hint: err.parent?.hint || err.hint
+        });
+      case '23503':   // FK
+        return res.status(400).json({ error: 'Bad Request', message: 'Foreign key violation', detail: err.parent?.detail || err.detail });
+      case '23505':   // Unique
+        return res.status(400).json({ error: 'Bad Request', message: 'Unique violation', detail: err.parent?.detail || err.detail });
+      case '23514':   // Check
+        return res.status(400).json({ error: 'Bad Request', message: 'Check violation', detail: err.parent?.detail || err.detail });
     }
   }
 
