@@ -1,6 +1,5 @@
 const Setting = require('../models/setting.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 const db = require('../config/db');
 
 /**
@@ -85,12 +84,6 @@ class SettingController {
    */
   static async createSetting(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const setting = await Setting.create(req.body);
       
       res.status(201).json({
@@ -109,12 +102,6 @@ class SettingController {
    */
   static async updateSetting(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const setting = await Setting.update(id, req.body);
       
@@ -134,20 +121,8 @@ class SettingController {
    */
   static async updateSettingByKey(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { key } = req.params;
-      const { value } = req.body;
-      
-      if (value === undefined) {
-        throw new ValidationError('Giá trị cài đặt là bắt buộc');
-      }
-      
-      const setting = await Setting.updateValue(key, value);
+      const setting = await Setting.updateByKey(key, req.body);
       
       res.status(200).json({
         success: true,
@@ -164,44 +139,31 @@ class SettingController {
    * @route PUT /api/settings/bulk
    */
   static async updateBulkSettings(req, res, next) {
+    const client = await db.getClient();
+    
     try {
       const { settings } = req.body;
       
-      if (!settings || !Array.isArray(settings)) {
-        throw new ValidationError('Danh sách cài đặt không hợp lệ');
-      }
-      
-      // Bắt đầu transaction
-      await db.query('BEGIN');
+      await client.query('BEGIN');
       
       const results = [];
-      
-      // Cập nhật từng cài đặt
       for (const item of settings) {
-        if (!item.key || item.value === undefined) {
-          await db.query('ROLLBACK');
-          throw new ValidationError('Thiếu key hoặc value cho cài đặt');
-        }
-        
-        try {
-          const setting = await Setting.updateValue(item.key, item.value);
-          results.push(setting);
-        } catch (error) {
-          await db.query('ROLLBACK');
-          throw error;
-        }
+        const setting = await Setting.updateByKey(item.key, { value: item.value }, client);
+        results.push(setting);
       }
       
-      // Hoàn thành transaction
-      await db.query('COMMIT');
+      await client.query('COMMIT');
       
       res.status(200).json({
         success: true,
-        message: 'Cập nhật cài đặt thành công',
+        message: 'Cập nhật hàng loạt cài đặt thành công',
         data: results
       });
     } catch (error) {
+      await client.query('ROLLBACK');
       next(error);
+    } finally {
+      client.release();
     }
   }
   

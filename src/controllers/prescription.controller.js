@@ -1,6 +1,5 @@
 const Prescription = require('../models/prescription.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * PrescriptionController
@@ -51,12 +50,6 @@ class PrescriptionController {
    */
   static async createPrescription(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       // Thêm staff_id từ người dùng hiện tại
       const data = {
         ...req.body,
@@ -81,12 +74,6 @@ class PrescriptionController {
    */
   static async updatePrescription(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const prescription = await Prescription.update(id, req.body);
       

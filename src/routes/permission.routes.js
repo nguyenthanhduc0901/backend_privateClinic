@@ -1,21 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const PermissionController = require('../controllers/permission.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { permissionSchema } = require('../schemas');
+const { createPermissionSchema, updatePermissionSchema } = permissionSchema;
 
 const router = express.Router();
-
-// Validation rules cho quyền hạn
-const permissionValidation = [
-  body('name')
-    .notEmpty().withMessage('Tên quyền không được để trống')
-    .isLength({ max: 50 }).withMessage('Tên quyền không được quá 50 ký tự')
-    .matches(/^[a-z_]+$/).withMessage('Tên quyền chỉ được chứa chữ cái thường và dấu gạch dưới'),
-  
-  body('description')
-    .optional()
-    .isLength({ max: 255 }).withMessage('Mô tả không được quá 255 ký tự')
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -62,7 +52,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_permission']),
-  permissionValidation,
+  validate(createPermissionSchema),
   PermissionController.createPermission
 );
 
@@ -72,7 +62,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_permission']),
-  permissionValidation,
+  validate(updatePermissionSchema),
   PermissionController.updatePermission
 );
 

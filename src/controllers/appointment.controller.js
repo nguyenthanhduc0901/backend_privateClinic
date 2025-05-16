@@ -1,6 +1,5 @@
 const Appointment = require('../models/appointment.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * AppointmentController
@@ -75,18 +74,6 @@ class AppointmentController {
         throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
       }
       
-      // Kiểm tra ngày hẹn không được là ngày trong quá khứ
-      const appointmentDate = new Date(req.body.appointment_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (appointmentDate < today) {
-        throw new ValidationError('Ngày hẹn không thể là ngày trong quá khứ', [{
-          param: 'appointment_date',
-          msg: 'Ngày hẹn phải từ hôm nay trở đi'
-        }]);
-      }
-      
       const appointment = await Appointment.create(req.body);
       
       res.status(201).json({
@@ -109,20 +96,6 @@ class AppointmentController {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
-      // Kiểm tra ngày hẹn mới không được là ngày trong quá khứ
-      if (req.body.appointment_date) {
-        const appointmentDate = new Date(req.body.appointment_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (appointmentDate < today) {
-          throw new ValidationError('Ngày hẹn không thể là ngày trong quá khứ', [{
-            param: 'appointment_date',
-            msg: 'Ngày hẹn phải từ hôm nay trở đi'
-          }]);
-        }
       }
       
       const { id } = req.params;
@@ -158,24 +131,22 @@ class AppointmentController {
   }
   
   /**
-   * Lấy thông tin về giới hạn lịch hẹn
+   * Lấy thông tin về giới hạn bệnh nhân trong ngày
    * @route GET /api/appointments/limits
    */
   static async getAppointmentLimits(req, res, next) {
     try {
-      const limits = await Appointment.getAppointmentLimits();
-      
-      // Thêm thông tin count cho ngày hiện tại
-      const today = new Date().toISOString().split('T')[0];
-      const currentCount = await Appointment.getCurrentPatientCount(today);
+      const maxPatients = await Appointment.getMaxPatientsPerDay();
+      const date = req.query.date || new Date().toISOString().split('T')[0];
+      const currentCount = await Appointment.getCurrentPatientCount(date);
       
       res.status(200).json({
         success: true,
         data: {
-          ...limits,
-          today,
+          date,
+          maxPatients,
           currentCount,
-          remainingToday: limits.maxPatientsPerDay - currentCount
+          availableSlots: maxPatients - currentCount
         }
       });
     } catch (error) {

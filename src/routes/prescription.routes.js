@@ -1,45 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const PrescriptionController = require('../controllers/prescription.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { prescriptionSchema } = require('../schemas');
+const { createPrescriptionSchema, updatePrescriptionSchema } = prescriptionSchema;
 
 const router = express.Router();
-
-// Validation rules cho đơn thuốc
-const prescriptionValidation = [
-  body('medical_record_id')
-    .notEmpty().withMessage('ID hồ sơ bệnh án không được trống')
-    .isInt().withMessage('ID hồ sơ bệnh án phải là số nguyên'),
-  
-  body('medicine_id')
-    .notEmpty().withMessage('ID thuốc không được trống')
-    .isInt().withMessage('ID thuốc phải là số nguyên'),
-  
-  body('quantity')
-    .notEmpty().withMessage('Số lượng không được trống')
-    .isInt({ min: 1 }).withMessage('Số lượng phải là số nguyên dương'),
-  
-  body('usage_instruction_id')
-    .notEmpty().withMessage('ID cách dùng không được trống')
-    .isInt().withMessage('ID cách dùng phải là số nguyên'),
-  
-  body('notes')
-    .optional()
-];
-
-// Validation cho cập nhật đơn thuốc
-const updatePrescriptionValidation = [
-  body('quantity')
-    .optional()
-    .isInt({ min: 1 }).withMessage('Số lượng phải là số nguyên dương'),
-  
-  body('usage_instruction_id')
-    .optional()
-    .isInt().withMessage('ID cách dùng phải là số nguyên'),
-  
-  body('notes')
-    .optional()
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -77,7 +43,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_prescription']),
-  prescriptionValidation,
+  validate(createPrescriptionSchema),
   PrescriptionController.createPrescription
 );
 
@@ -87,7 +53,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_prescription']),
-  updatePrescriptionValidation,
+  validate(updatePrescriptionSchema),
   PrescriptionController.updatePrescription
 );
 

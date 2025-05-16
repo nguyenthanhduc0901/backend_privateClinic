@@ -1,6 +1,5 @@
 const Medicine = require('../models/medicine.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * MedicineController
@@ -51,12 +50,6 @@ class MedicineController {
    */
   static async createMedicine(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const medicine = await Medicine.create(req.body);
       
       res.status(201).json({
@@ -75,12 +68,6 @@ class MedicineController {
    */
   static async updateMedicine(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const medicine = await Medicine.update(id, req.body);
       
@@ -100,12 +87,6 @@ class MedicineController {
    */
   static async updateStock(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const { quantity } = req.body;
       

@@ -1,41 +1,15 @@
 const express = require('express');
-const { body } = require('express-validator');
 const SettingController = require('../controllers/setting.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { settingSchema } = require('../schemas');
+const { 
+  createSettingSchema, 
+  updateSettingSchema, 
+  bulkUpdateSettingSchema 
+} = settingSchema;
+const validate = require('../middlewares/validation.middleware');
 
 const router = express.Router();
-
-// Validation rules cho cài đặt
-const settingValidation = [
-  body('key')
-    .notEmpty().withMessage('Key cài đặt không được để trống')
-    .isLength({ max: 50 }).withMessage('Key cài đặt không được quá 50 ký tự')
-    .matches(/^[a-z_]+$/).withMessage('Key cài đặt chỉ được chứa chữ cái thường và dấu gạch dưới'),
-  
-  body('value')
-    .notEmpty().withMessage('Giá trị cài đặt không được để trống'),
-  
-  body('description')
-    .optional()
-    .isLength({ max: 255 }).withMessage('Mô tả không được quá 255 ký tự')
-];
-
-// Validation rules cho cập nhật cài đặt
-const updateSettingValidation = [
-  body('value')
-    .notEmpty().withMessage('Giá trị cài đặt không được để trống'),
-  
-  body('description')
-    .optional()
-    .isLength({ max: 255 }).withMessage('Mô tả không được quá 255 ký tự')
-];
-
-// Validation rules cho cập nhật hàng loạt
-const bulkUpdateValidation = [
-  body('settings')
-    .isArray().withMessage('Danh sách cài đặt phải là một mảng')
-    .notEmpty().withMessage('Danh sách cài đặt không được trống')
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -82,7 +56,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_setting']),
-  settingValidation,
+  validate(createSettingSchema),
   SettingController.createSetting
 );
 
@@ -92,7 +66,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_setting']),
-  updateSettingValidation,
+  validate(updateSettingSchema),
   SettingController.updateSetting
 );
 
@@ -102,7 +76,7 @@ router.put(
 router.put(
   '/key/:key',
   authorize(['update_setting']),
-  updateSettingValidation,
+  validate(updateSettingSchema),
   SettingController.updateSettingByKey
 );
 
@@ -112,7 +86,7 @@ router.put(
 router.put(
   '/bulk',
   authorize(['update_setting']),
-  bulkUpdateValidation,
+  validate(bulkUpdateSettingSchema),
   SettingController.updateBulkSettings
 );
 

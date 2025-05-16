@@ -1,6 +1,5 @@
 const DiseaseType = require('../models/diseaseType.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * DiseaseTypeController
@@ -49,12 +48,6 @@ class DiseaseTypeController {
    */
   static async createDiseaseType(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const diseaseType = await DiseaseType.create(req.body);
       
       res.status(201).json({
@@ -73,12 +66,6 @@ class DiseaseTypeController {
    */
   static async updateDiseaseType(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const diseaseType = await DiseaseType.update(id, req.body);
       

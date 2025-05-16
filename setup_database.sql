@@ -5,26 +5,6 @@ DROP VIEW IF EXISTS view_invoice CASCADE;
 DROP VIEW IF EXISTS view_daily_revenue CASCADE;
 DROP VIEW IF EXISTS view_medicine_usage CASCADE;
 
--- Xóa các trigger nếu tồn tại
-DROP TRIGGER IF EXISTS trigger_check_max_patients ON appointment_lists;
-DROP TRIGGER IF EXISTS update_appointment_lists_updated_at ON appointment_lists;
-DROP TRIGGER IF EXISTS trigger_check_max_disease_types ON disease_types;
-DROP TRIGGER IF EXISTS update_disease_types_updated_at ON disease_types;
-DROP TRIGGER IF EXISTS trigger_check_max_medicines ON medicines;
-DROP TRIGGER IF EXISTS update_medicines_updated_at ON medicines;
-DROP TRIGGER IF EXISTS trigger_check_max_usage_instructions ON usage_instructions;
-DROP TRIGGER IF EXISTS update_usage_instructions_updated_at ON usage_instructions;
-DROP TRIGGER IF EXISTS trigger_calculate_total_fee ON invoices;
-DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
-DROP TRIGGER IF EXISTS trigger_check_medicine_stock ON prescriptions;
-DROP TRIGGER IF EXISTS trigger_update_medicine_stock ON prescriptions;
-DROP TRIGGER IF EXISTS update_prescriptions_updated_at ON prescriptions;
-DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
-DROP TRIGGER IF EXISTS update_patients_updated_at ON patients;
-DROP TRIGGER IF EXISTS update_roles_updated_at ON roles;
-DROP TRIGGER IF EXISTS update_staff_updated_at ON staff;
-DROP TRIGGER IF EXISTS update_medical_records_updated_at ON medical_records;
-DROP TRIGGER IF EXISTS update_permissions_updated_at ON permissions;
 -- Xóa các bảng cũ nếu tồn tại
 DROP TABLE IF EXISTS role_permissions CASCADE;
 DROP TABLE IF EXISTS permissions CASCADE;
@@ -52,45 +32,62 @@ $$ language 'plpgsql';
 CREATE OR REPLACE FUNCTION check_max_patients_per_day()
 RETURNS TRIGGER AS $$
 DECLARE
-    max_patients INTEGER;
+    max_patients  INTEGER;
     current_count INTEGER;
 BEGIN
-    SELECT value::INTEGER INTO max_patients FROM settings WHERE key = 'max_patients_per_day';
-    IF max_patients IS NULL THEN
-        max_patients := 40; -- Giá trị mặc định
-    END IF;
-    SELECT COUNT(*) INTO current_count FROM appointment_lists WHERE appointment_date = NEW.appointment_date;
+    -- Lấy giới hạn tối đa trong bảng settings
+    SELECT value::INTEGER
+    INTO   max_patients
+    FROM   settings
+    WHERE  key = 'max_patients_per_day';
+
+    -- Đếm số bệnh nhân đã đặt lịch trong ngày
+    SELECT COUNT(*)
+    INTO   current_count
+    FROM   appointment_lists
+    WHERE  appointment_date = NEW.appointment_date;
+
+    -- Kiểm tra giới hạn
     IF current_count >= max_patients THEN
-        RAISE EXCEPTION 'P0001' 
-            USING MESSAGE = 'Số lượng bệnh nhân trong ngày đã đạt tối đa',
-                  DETAIL = 'Ngày: ' || NEW.appointment_date || ', Số lượng hiện tại: ' || current_count || ', Giới hạn: ' || max_patients,
-                  HINT = 'Vui lòng chọn ngày khác hoặc liên hệ quản trị viên để tăng giới hạn';
+        RAISE EXCEPTION
+            'Số lượng bệnh nhân trong ngày đã đạt tối đa'
+            USING ERRCODE = 'P0001',
+                  DETAIL  = format(
+                               'Ngày: %s, Số lượng hiện tại: %s, Giới hạn: %s',
+                               NEW.appointment_date, current_count, max_patients),
+                  HINT    = 'Vui lòng chọn ngày khác hoặc liên hệ quản trị viên để tăng giới hạn';
     END IF;
+
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION check_max_disease_types()
 RETURNS TRIGGER AS $$
 DECLARE
     max_disease_types INTEGER;
-    current_count INTEGER;
+    current_count     INTEGER;
 BEGIN
-    -- Get max_disease_types from settings
-    SELECT value::INTEGER INTO max_disease_types
-    FROM settings
-    WHERE key = 'max_disease_types';
+    /* Lấy giới hạn max_disease_types trong bảng settings */
+    SELECT value::INTEGER
+    INTO   max_disease_types
+    FROM   settings
+    WHERE  key = 'max_disease_types';
 
-    -- Get current count of disease types
-    SELECT COUNT(*) INTO current_count
-    FROM disease_types;
+    /* Đếm số loại bệnh hiện có */
+    SELECT COUNT(*)
+    INTO   current_count
+    FROM   disease_types;
 
-    -- Check if adding new disease type would exceed limit
+    /* Kiểm tra giới hạn */
     IF current_count >= max_disease_types THEN
-        RAISE EXCEPTION 'P0001' 
-            USING MESSAGE = 'Đã đạt đến giới hạn số lượng loại bệnh',
-                  DETAIL = 'Số lượng loại bệnh hiện tại: ' || current_count || ', Giới hạn: ' || max_disease_types,
-                  HINT = 'Vui lòng xóa bớt các loại bệnh không sử dụng hoặc tăng giới hạn trong cài đặt';
+        RAISE EXCEPTION
+            'Đã đạt đến giới hạn số lượng loại bệnh'
+            USING ERRCODE = 'P0001',
+                  DETAIL  = format(
+                               'Số lượng loại bệnh hiện tại: %s, Giới hạn: %s',
+                               current_count, max_disease_types),
+                  HINT    = 'Vui lòng xóa bớt các loại bệnh không sử dụng hoặc tăng giới hạn trong cài đặt';
     END IF;
 
     RETURN NEW;
@@ -103,21 +100,26 @@ DECLARE
     max_medicines INTEGER;
     current_count INTEGER;
 BEGIN
-    -- Get max_medicines from settings
-    SELECT value::INTEGER INTO max_medicines
-    FROM settings
-    WHERE key = 'max_medicines';
+    -- Lấy giới hạn max_medicines từ bảng settings
+    SELECT value::INTEGER
+    INTO   max_medicines
+    FROM   settings
+    WHERE  key = 'max_medicines';
 
-    -- Get current count of medicines
-    SELECT COUNT(*) INTO current_count
-    FROM medicines;
+    -- Đếm số thuốc hiện có
+    SELECT COUNT(*)
+    INTO   current_count
+    FROM   medicines;
 
-    -- Check if adding new medicine would exceed limit
+    -- Kiểm tra giới hạn
     IF current_count >= max_medicines THEN
-        RAISE EXCEPTION 'P0001' 
-            USING MESSAGE = 'Đã đạt đến giới hạn số lượng thuốc',
-                  DETAIL = 'Số lượng thuốc hiện tại: ' || current_count || ', Giới hạn: ' || max_medicines,
-                  HINT = 'Vui lòng xóa bớt các thuốc không sử dụng hoặc tăng giới hạn trong cài đặt';
+        RAISE EXCEPTION
+            'Đã đạt đến giới hạn số lượng thuốc'
+            USING ERRCODE = 'P0001',
+                  DETAIL  = format(
+                               'Số lượng thuốc hiện tại: %s, Giới hạn: %s',
+                               current_count, max_medicines),
+                  HINT    = 'Vui lòng xóa bớt thuốc không sử dụng hoặc tăng giới hạn trong cài đặt';
     END IF;
 
     RETURN NEW;
@@ -128,22 +130,33 @@ CREATE OR REPLACE FUNCTION check_max_usage_instructions()
 RETURNS TRIGGER AS $$
 DECLARE
     max_instructions INTEGER;
-    current_count INTEGER;
+    current_count    INTEGER;
 BEGIN
-    SELECT value::INTEGER INTO max_instructions FROM settings WHERE key = 'max_usage_instructions';
-    IF max_instructions IS NULL THEN
-        max_instructions := 4; -- Giá trị mặc định
-    END IF;
-    SELECT COUNT(*) INTO current_count FROM usage_instructions;
+    /* Lấy giới hạn tối đa từ bảng settings */
+    SELECT value::INTEGER
+    INTO   max_instructions
+    FROM   settings
+    WHERE  key = 'max_usage_instructions';
+
+    /* Đếm số hướng dẫn cách dùng hiện có */
+    SELECT COUNT(*)
+    INTO   current_count
+    FROM   usage_instructions;
+
+    /* Kiểm tra giới hạn */
     IF current_count >= max_instructions THEN
-        RAISE EXCEPTION 'P0001' 
-            USING MESSAGE = 'Đã đạt đến giới hạn số lượng cách dùng',
-                  DETAIL = 'Số lượng cách dùng hiện tại: ' || current_count || ', Giới hạn: ' || max_instructions,
-                  HINT = 'Vui lòng xóa bớt các cách dùng không sử dụng hoặc tăng giới hạn trong cài đặt';
+        RAISE EXCEPTION
+            'Đã đạt đến giới hạn số lượng cách dùng'
+            USING ERRCODE = 'P0001',
+                  DETAIL  = format(
+                               'Số lượng cách dùng hiện tại: %s, Giới hạn: %s',
+                               current_count, max_instructions),
+                  HINT    = 'Vui lòng xóa bớt các cách dùng không sử dụng hoặc tăng giới hạn trong cài đặt';
     END IF;
+
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION calculate_total_fee()
 RETURNS TRIGGER AS $$
@@ -544,7 +557,7 @@ ALTER TABLE medicines ADD CONSTRAINT check_unit CHECK (unit IN ('viên', 'chai')
 
 -- Chèn dữ liệu vào bảng settings (đã có trong cấu trúc, giữ nguyên)
 INSERT INTO settings (key, value, description) VALUES
-    ('max_patients_per_day', '40', 'Số bệnh nhân tối đa mỗi ngày'),
+    ('max_patients_per_day', '12', 'Số bệnh nhân tối đa mỗi ngày'),
     ('max_disease_types', '5', 'Số loại bệnh tối đa'),
     ('max_medicines', '30', 'Số loại thuốc tối đa'),
     ('max_usage_instructions', '4', 'Số cách dùng tối đa'),
@@ -769,37 +782,7 @@ INSERT INTO appointment_lists (patient_id, appointment_date, appointment_time, o
     (7, '2025-04-20', '09:30:00', 7, 'waiting', 'Khám viêm họng'),
     (8, '2025-04-20', '09:45:00', 8, 'waiting', 'Khám tiêu chảy'),
     (9, '2025-04-20', '10:00:00', 9, 'waiting', 'Khám đau đầu'),
-    (10, '2025-04-20', '10:15:00', 10, 'waiting', 'Khám viêm da'),
-    (1, '2025-04-20', '10:30:00', 11, 'waiting', 'Tái khám cảm cúm'),
-    (2, '2025-04-20', '10:45:00', 12, 'waiting', 'Khám viêm họng'),
-    (3, '2025-04-20', '11:00:00', 13, 'waiting', 'Khám tiêu chảy'),
-    (4, '2025-04-20', '11:15:00', 14, 'waiting', 'Khám đau đầu'),
-    (5, '2025-04-20', '11:30:00', 15, 'waiting', 'Khám viêm da'),
-    (6, '2025-04-20', '11:45:00', 16, 'waiting', 'Khám cảm cúm'),
-    (7, '2025-04-20', '12:00:00', 17, 'waiting', 'Khám viêm họng'),
-    (8, '2025-04-20', '12:15:00', 18, 'waiting', 'Khám tiêu chảy'),
-    (9, '2025-04-20', '12:30:00', 19, 'waiting', 'Khám đau đầu'),
-    (10, '2025-04-20', '12:45:00', 20, 'waiting', 'Khám viêm da'),
-    (1, '2025-04-20', '13:00:00', 21, 'waiting', 'Khám cảm cúm'),
-    (2, '2025-04-20', '13:15:00', 22, 'waiting', 'Khám viêm họng'),
-    (3, '2025-04-20', '13:30:00', 23, 'waiting', 'Khám tiêu chảy'),
-    (4, '2025-04-20', '13:45:00', 24, 'waiting', 'Khám đau đầu'),
-    (5, '2025-04-20', '14:00:00', 25, 'waiting', 'Khám viêm da'),
-    (6, '2025-04-20', '14:15:00', 26, 'waiting', 'Khám cảm cúm'),
-    (7, '2025-04-20', '14:30:00', 27, 'waiting', 'Khám viêm họng'),
-    (8, '2025-04-20', '14:45:00', 28, 'waiting', 'Khám tiêu chảy'),
-    (9, '2025-04-20', '15:00:00', 29, 'waiting', 'Khám đau đầu'),
-    (10, '2025-04-20', '15:15:00', 30, 'waiting', 'Khám viêm da'),
-    (1, '2025-04-20', '15:30:00', 31, 'waiting', 'Khám cảm cúm'),
-    (2, '2025-04-20', '15:45:00', 32, 'waiting', 'Khám viêm họng'),
-    (3, '2025-04-20', '16:00:00', 33, 'waiting', 'Khám tiêu chảy'),
-    (4, '2025-04-20', '16:15:00', 34, 'waiting', 'Khám đau đầu'),
-    (5, '2025-04-20', '16:30:00', 35, 'waiting', 'Khám viêm da'),
-    (6, '2025-04-20', '16:45:00', 36, 'waiting', 'Khám cảm cúm'),
-    (7, '2025-04-20', '17:00:00', 37, 'waiting', 'Khám viêm họng'),
-    (8, '2025-04-20', '17:15:00', 38, 'waiting', 'Khám tiêu chảy'),
-    (9, '2025-04-20', '17:30:00', 39, 'waiting', 'Khám đau đầu'),
-    (10, '2025-04-20', '17:45:00', 40, 'waiting', 'Khám viêm da');
+    (10, '2025-04-20', '10:15:00', 10, 'waiting', 'Khám viêm da');
 
 -- Chèn dữ liệu vào bảng medical_records (5 phiếu khám mẫu)
 INSERT INTO medical_records (patient_id, staff_id, examination_date, symptoms, diagnosis, disease_type_id, status, notes) VALUES

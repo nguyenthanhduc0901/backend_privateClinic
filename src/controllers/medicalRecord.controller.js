@@ -1,6 +1,5 @@
 const MedicalRecord = require('../models/medicalRecord.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * MedicalRecordController
@@ -56,12 +55,6 @@ class MedicalRecordController {
    */
   static async createMedicalRecord(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       // Thêm staff_id từ người dùng hiện tại
       const data = {
         ...req.body,
@@ -86,12 +79,6 @@ class MedicalRecordController {
    */
   static async updateMedicalRecord(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const medicalRecord = await MedicalRecord.update(id, req.body);
       

@@ -1,33 +1,16 @@
 const express = require('express');
-const { body, param } = require('express-validator');
+const { param } = require('express-validator');
 const InvoiceController = require('../controllers/invoice.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { invoiceSchema } = require('../schemas');
+const { 
+  createInvoiceSchema, 
+  updateInvoiceSchema, 
+  processPaymentSchema 
+} = invoiceSchema;
 
 const router = express.Router();
-
-// Validation rules cho hóa đơn
-const invoiceValidation = [
-  body('medical_record_id')
-    .notEmpty().withMessage('ID hồ sơ bệnh án không được trống')
-    .isInt().withMessage('ID hồ sơ bệnh án phải là số nguyên'),
-  
-  body('status')
-    .optional()
-    .isIn(['pending', 'paid', 'cancelled']).withMessage('Trạng thái không hợp lệ'),
-  
-  body('notes')
-    .optional()
-];
-
-// Validation cho cập nhật hóa đơn
-const updateInvoiceValidation = [
-  body('status')
-    .optional()
-    .isIn(['pending', 'paid', 'cancelled']).withMessage('Trạng thái không hợp lệ'),
-  
-  body('notes')
-    .optional()
-];
 
 // Validation cho các tham số ngày tháng
 const dateParamValidation = [
@@ -90,7 +73,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_invoice']),
-  invoiceValidation,
+  validate(createInvoiceSchema),
   InvoiceController.createInvoice
 );
 
@@ -100,7 +83,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_invoice']),
-  updateInvoiceValidation,
+  validate(updateInvoiceSchema),
   InvoiceController.updateInvoice
 );
 
@@ -110,6 +93,7 @@ router.put(
 router.patch(
   '/:id/process-payment',
   authorize(['process_payment']),
+  validate(processPaymentSchema),
   InvoiceController.processPayment
 );
 

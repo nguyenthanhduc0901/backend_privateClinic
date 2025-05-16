@@ -1,27 +1,12 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { param } = require('express-validator');
 const AppointmentController = require('../controllers/appointment.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { appointmentSchema } = require('../schemas');
+const { createAppointmentSchema, updateAppointmentSchema } = appointmentSchema;
+const validate = require('../middlewares/validation.middleware');
 
 const router = express.Router();
-
-// Validation rules cho lịch hẹn
-const appointmentValidation = [
-  body('patient_id')
-    .notEmpty().withMessage('ID bệnh nhân không được trống')
-    .isInt().withMessage('ID bệnh nhân phải là số nguyên'),
-  
-  body('appointment_date')
-    .notEmpty().withMessage('Ngày hẹn không được trống')
-    .isDate().withMessage('Ngày hẹn phải đúng định dạng YYYY-MM-DD'),
-  
-  body('appointment_time')
-    .optional()
-    .matches(/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/).withMessage('Thời gian phải đúng định dạng HH:MM:SS'),
-  
-  body('notes')
-    .optional()
-];
 
 // Validation cho date param
 const dateParamValidation = [
@@ -75,7 +60,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_appointment']),
-  appointmentValidation,
+  validate(createAppointmentSchema),
   AppointmentController.createAppointment
 );
 
@@ -85,7 +70,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_appointment']),
-  appointmentValidation,
+  validate(updateAppointmentSchema),
   AppointmentController.updateAppointment
 );
 

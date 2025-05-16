@@ -1,30 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const RoleController = require('../controllers/role.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { roleSchema } = require('../schemas');
+const { createRoleSchema, updateRoleSchema } = roleSchema;
 
 const router = express.Router();
-
-// Validation rules cho vai trò
-const roleValidation = [
-  body('name')
-    .notEmpty().withMessage('Tên vai trò không được để trống')
-    .isLength({ max: 50 }).withMessage('Tên vai trò không được quá 50 ký tự'),
-  
-  body('description')
-    .optional()
-    .isLength({ max: 255 }).withMessage('Mô tả không được quá 255 ký tự'),
-  
-  body('permissionIds')
-    .optional()
-    .isArray().withMessage('Danh sách quyền phải là một mảng')
-    .custom(value => {
-      if (!value.every(id => Number.isInteger(id) || typeof id === 'string' && /^\d+$/.test(id))) {
-        throw new Error('Danh sách quyền chứa ID không hợp lệ');
-      }
-      return true;
-    })
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -71,7 +52,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_role']),
-  roleValidation,
+  validate(createRoleSchema),
   RoleController.createRole
 );
 
@@ -81,7 +62,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_role']),
-  roleValidation,
+  validate(updateRoleSchema),
   RoleController.updateRole
 );
 

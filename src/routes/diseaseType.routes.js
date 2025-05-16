@@ -1,19 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const DiseaseTypeController = require('../controllers/diseaseType.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { diseaseTypeSchema } = require('../schemas');
+const { createDiseaseTypeSchema, updateDiseaseTypeSchema } = diseaseTypeSchema;
 
 const router = express.Router();
-
-// Validation rules cho loại bệnh
-const diseaseTypeValidation = [
-  body('name')
-    .notEmpty().withMessage('Tên loại bệnh không được trống')
-    .isLength({ max: 100 }).withMessage('Tên loại bệnh không được quá 100 ký tự'),
-  
-  body('description')
-    .optional()
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -51,7 +43,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_disease_type']),
-  diseaseTypeValidation,
+  validate(createDiseaseTypeSchema),
   DiseaseTypeController.createDiseaseType
 );
 
@@ -61,7 +53,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_disease_type']),
-  diseaseTypeValidation,
+  validate(updateDiseaseTypeSchema),
   DiseaseTypeController.updateDiseaseType
 );
 

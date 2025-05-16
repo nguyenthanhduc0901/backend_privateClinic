@@ -1,6 +1,5 @@
 const Patient = require('../models/patient.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * PatientController
@@ -8,17 +7,23 @@ const { validationResult } = require('express-validator');
  */
 class PatientController {
   /**
-   * Lấy danh sách tất cả bệnh nhân
+   * Lấy danh sách bệnh nhân
    * @route GET /api/patients
    */
   static async getAllPatients(req, res, next) {
     try {
-      const { search, page, limit } = req.query;
-      const patients = await Patient.findAll({ search, page, limit });
+      const { search, page = 1, limit = 10 } = req.query;
+      
+      const result = await Patient.findAll({
+        search,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      });
       
       res.status(200).json({
         success: true,
-        ...patients
+        data: result.data,
+        pagination: result.pagination
       });
     } catch (error) {
       next(error);
@@ -26,7 +31,7 @@ class PatientController {
   }
   
   /**
-   * Lấy thông tin của một bệnh nhân
+   * Lấy thông tin chi tiết bệnh nhân
    * @route GET /api/patients/:id
    */
   static async getPatientById(req, res, next) {
@@ -84,7 +89,7 @@ class PatientController {
       
       res.status(200).json({
         success: true,
-        message: 'Cập nhật bệnh nhân thành công',
+        message: 'Cập nhật thông tin bệnh nhân thành công',
         data: patient
       });
     } catch (error) {
@@ -111,17 +116,25 @@ class PatientController {
   }
   
   /**
-   * Lấy lịch sử khám bệnh của bệnh nhân
-   * @route GET /api/patients/:id/medical-history
+   * Tìm kiếm bệnh nhân theo số điện thoại hoặc tên
+   * @route GET /api/patients/search
    */
-  static async getPatientMedicalHistory(req, res, next) {
+  static async searchPatients(req, res, next) {
     try {
-      const { id } = req.params;
-      const medicalHistory = await Patient.getMedicalHistory(id);
+      const { query } = req.query;
+      
+      if (!query) {
+        return res.status(200).json({
+          success: true,
+          data: []
+        });
+      }
+      
+      const patients = await Patient.search(query);
       
       res.status(200).json({
         success: true,
-        data: medicalHistory
+        data: patients
       });
     } catch (error) {
       next(error);

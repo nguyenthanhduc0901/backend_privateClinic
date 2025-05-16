@@ -1,6 +1,5 @@
 const Permission = require('../models/permission.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * PermissionController
@@ -89,12 +88,6 @@ class PermissionController {
    */
   static async createPermission(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const permission = await Permission.create(req.body);
       
       res.status(201).json({
@@ -113,12 +106,6 @@ class PermissionController {
    */
   static async updatePermission(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const permission = await Permission.update(id, req.body);
       

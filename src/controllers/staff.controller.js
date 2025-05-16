@@ -1,6 +1,6 @@
 const Staff = require('../models/staff.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
+const { generateToken } = require('../utils/auth');
 
 /**
  * StaffController
@@ -13,18 +13,20 @@ class StaffController {
    */
   static async getAllStaff(req, res, next) {
     try {
-      const { search, page, limit, roleId, isActive } = req.query;
-      const staffList = await Staff.findAll({ 
-        search, 
-        page, 
-        limit, 
-        roleId: roleId ? parseInt(roleId) : null,
-        isActive: isActive !== undefined ? isActive === 'true' : null
+      const { search, page = 1, limit = 10, roleId, isActive } = req.query;
+      
+      const result = await Staff.findAll({
+        search,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        roleId: roleId ? parseInt(roleId) : undefined,
+        isActive: isActive !== undefined ? isActive === 'true' : undefined
       });
       
       res.status(200).json({
         success: true,
-        ...staffList
+        data: result.data,
+        pagination: result.pagination
       });
     } catch (error) {
       next(error);
@@ -32,7 +34,7 @@ class StaffController {
   }
   
   /**
-   * Lấy thông tin nhân viên theo ID
+   * Lấy thông tin chi tiết nhân viên
    * @route GET /api/staff/:id
    */
   static async getStaffById(req, res, next) {
@@ -99,74 +101,101 @@ class StaffController {
   }
   
   /**
-   * Thay đổi mật khẩu nhân viên
-   * @route PATCH /api/staff/:id/change-password
-   */
-  static async changePassword(req, res, next) {
-    try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
-      const { id } = req.params;
-      const { newPassword } = req.body;
-      
-      await Staff.changePassword(id, newPassword);
-      
-      res.status(200).json({
-        success: true,
-        message: 'Thay đổi mật khẩu thành công'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-  
-  /**
-   * Thay đổi trạng thái hoạt động của nhân viên
-   * @route PATCH /api/staff/:id/status
-   */
-  static async changeStatus(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { isActive } = req.body;
-      
-      if (isActive === undefined) {
-        throw new ValidationError('Trạng thái hoạt động là bắt buộc');
-      }
-      
-      const staff = await Staff.changeStatus(id, isActive);
-      
-      res.status(200).json({
-        success: true,
-        message: `${isActive ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản nhân viên thành công`,
-        data: staff
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-  
-  /**
    * Xóa nhân viên
    * @route DELETE /api/staff/:id
    */
   static async deleteStaff(req, res, next) {
     try {
       const { id } = req.params;
-      
-      // Ngăn việc xóa tài khoản của chính mình
-      if (req.user && req.user.id === parseInt(id)) {
-        throw new ValidationError('Không thể xóa tài khoản của chính bạn');
-      }
-      
       await Staff.delete(id);
       
       res.status(200).json({
         success: true,
         message: 'Xóa nhân viên thành công'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  /**
+   * Đăng nhập nhân viên
+   * @route POST /api/staff/login
+   */
+  static async login(req, res, next) {
+    try {
+      const { username, password } = req.body;
+      
+      // Kiểm tra thông tin đăng nhập
+      const staff = await Staff.authenticate(username, password);
+      
+      if (!staff) {
+        throw new ValidationError('Tên đăng nhập hoặc mật khẩu không đúng');
+      }
+      
+      // Tạo token
+      const token = generateToken({
+        id: staff.id,
+        username: staff.username,
+        role: staff.role
+      });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Đăng nhập thành công',
+        data: {
+          token,
+          user: {
+            id: staff.id,
+            username: staff.username,
+            fullName: staff.full_name,
+            email: staff.email,
+            phone: staff.phone,
+            role: staff.role,
+            isActive: staff.is_active
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  /**
+   * Đổi mật khẩu
+   * @route POST /api/staff/change-password
+   */
+  static async changePassword(req, res, next) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const staffId = req.user.id;
+      
+      await Staff.changePassword(staffId, currentPassword, newPassword);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Đổi mật khẩu thành công'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  /**
+   * Lấy thông tin nhân viên hiện tại
+   * @route GET /api/staff/me
+   */
+  static async getCurrentStaff(req, res, next) {
+    try {
+      const staff = await Staff.findById(req.user.id);
+      
+      if (!staff) {
+        throw new ValidationError('Không tìm thấy thông tin nhân viên');
+      }
+      
+      res.status(200).json({
+        success: true,
+        data: staff
       });
     } catch (error) {
       next(error);

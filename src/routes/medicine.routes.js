@@ -1,38 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const MedicineController = require('../controllers/medicine.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { medicineSchema } = require('../schemas');
+const { createMedicineSchema, updateMedicineSchema, updateStockSchema } = medicineSchema;
 
 const router = express.Router();
-
-// Validation rules cho thuốc
-const medicineValidation = [
-  body('name')
-    .notEmpty().withMessage('Tên thuốc không được trống')
-    .isLength({ max: 100 }).withMessage('Tên thuốc không được quá 100 ký tự'),
-  
-  body('unit')
-    .notEmpty().withMessage('Đơn vị tính không được trống')
-    .isIn(['viên', 'chai']).withMessage('Đơn vị tính phải là viên hoặc chai'),
-  
-  body('price')
-    .notEmpty().withMessage('Giá thuốc không được trống')
-    .isFloat({ min: 0 }).withMessage('Giá thuốc phải là số dương'),
-  
-  body('quantity_in_stock')
-    .optional()
-    .isInt({ min: 0 }).withMessage('Số lượng trong kho phải là số nguyên không âm'),
-  
-  body('description')
-    .optional()
-];
-
-// Validation cho cập nhật kho
-const stockValidation = [
-  body('quantity')
-    .notEmpty().withMessage('Số lượng không được trống')
-    .isInt().withMessage('Số lượng phải là số nguyên')
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -79,7 +52,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_medicine']),
-  medicineValidation,
+  validate(createMedicineSchema),
   MedicineController.createMedicine
 );
 
@@ -89,7 +62,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_medicine']),
-  medicineValidation,
+  validate(updateMedicineSchema),
   MedicineController.updateMedicine
 );
 
@@ -99,7 +72,7 @@ router.put(
 router.patch(
   '/:id/stock',
   authorize(['manage_medicine_stock']),
-  stockValidation,
+  validate(updateStockSchema),
   MedicineController.updateStock
 );
 

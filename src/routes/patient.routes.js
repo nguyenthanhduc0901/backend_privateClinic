@@ -1,31 +1,11 @@
 const express = require('express');
-const { body } = require('express-validator');
 const PatientController = require('../controllers/patient.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const { patientSchema } = require('../schemas');
+const { createPatientSchema, updatePatientSchema } = patientSchema;
+const validate = require('../middlewares/validation.middleware');
 
 const router = express.Router();
-
-// Validation rules cho bệnh nhân
-const patientValidation = [
-  body('full_name')
-    .notEmpty().withMessage('Tên bệnh nhân không được trống')
-    .isLength({ max: 100 }).withMessage('Tên bệnh nhân không được quá 100 ký tự'),
-  
-  body('gender')
-    .notEmpty().withMessage('Giới tính không được trống')
-    .isIn(['Nam', 'Nữ', 'Khác']).withMessage('Giới tính phải là Nam, Nữ hoặc Khác'),
-  
-  body('birth_year')
-    .notEmpty().withMessage('Năm sinh không được trống')
-    .isInt({ min: 1900 }).withMessage('Năm sinh phải lớn hơn 1900'),
-  
-  body('phone')
-    .optional()
-    .isLength({ max: 20 }).withMessage('Số điện thoại không được quá 20 ký tự'),
-  
-  body('address')
-    .optional()
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -54,7 +34,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_patient']),
-  patientValidation,
+  validate(createPatientSchema),
   PatientController.createPatient
 );
 
@@ -64,7 +44,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_patient']),
-  patientValidation,
+  validate(updatePatientSchema),
   PatientController.updatePatient
 );
 
@@ -75,15 +55,6 @@ router.delete(
   '/:id',
   authorize(['delete_patient']),
   PatientController.deletePatient
-);
-
-// Route: GET /api/patients/:id/medical-history
-// Mô tả: Lấy lịch sử khám bệnh của bệnh nhân
-// Quyền: view_patients, view_medical_records
-router.get(
-  '/:id/medical-history',
-  authorize(['view_patients', 'view_medical_records']),
-  PatientController.getPatientMedicalHistory
 );
 
 module.exports = router;

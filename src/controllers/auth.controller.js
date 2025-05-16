@@ -1,6 +1,5 @@
 const Auth = require('../models/auth.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * AuthController
@@ -13,12 +12,6 @@ class AuthController {
    */
   static async login(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { username, password } = req.body;
       const authResult = await Auth.login(username, password);
       
@@ -55,12 +48,6 @@ class AuthController {
    */
   static async changePassword(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { currentPassword, newPassword } = req.body;
       await Auth.changePassword(req.user.id, currentPassword, newPassword);
       

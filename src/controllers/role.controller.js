@@ -1,6 +1,5 @@
 const Role = require('../models/role.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * RoleController
@@ -84,12 +83,6 @@ class RoleController {
    */
   static async createRole(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const role = await Role.create(req.body);
       
       res.status(201).json({
@@ -108,12 +101,6 @@ class RoleController {
    */
   static async updateRole(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const role = await Role.update(id, req.body);
       

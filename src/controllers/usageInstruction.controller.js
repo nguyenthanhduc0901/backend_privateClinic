@@ -1,6 +1,5 @@
 const UsageInstruction = require('../models/usageInstruction.model');
 const { ValidationError } = require('../utils/apiError');
-const { validationResult } = require('express-validator');
 
 /**
  * UsageInstructionController
@@ -49,12 +48,6 @@ class UsageInstructionController {
    */
   static async createUsageInstruction(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const usageInstruction = await UsageInstruction.create(req.body);
       
       res.status(201).json({
@@ -73,12 +66,6 @@ class UsageInstructionController {
    */
   static async updateUsageInstruction(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const usageInstruction = await UsageInstruction.update(id, req.body);
       

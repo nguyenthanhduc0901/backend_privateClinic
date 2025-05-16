@@ -1,19 +1,14 @@
 const express = require('express');
-const { body } = require('express-validator');
 const UsageInstructionController = require('../controllers/usageInstruction.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
+const validate = require('../middlewares/validation.middleware');
+const { usageInstructionSchema } = require('../schemas');
+const { 
+  createUsageInstructionSchema, 
+  updateUsageInstructionSchema 
+} = usageInstructionSchema;
 
 const router = express.Router();
-
-// Validation rules cho cách dùng thuốc
-const usageInstructionValidation = [
-  body('instruction')
-    .notEmpty().withMessage('Cách dùng thuốc không được trống')
-    .isLength({ max: 100 }).withMessage('Cách dùng thuốc không được quá 100 ký tự'),
-  
-  body('description')
-    .optional()
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -51,7 +46,7 @@ router.get(
 router.post(
   '/',
   authorize(['create_usage_instruction']),
-  usageInstructionValidation,
+  validate(createUsageInstructionSchema),
   UsageInstructionController.createUsageInstruction
 );
 
@@ -61,7 +56,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['update_usage_instruction']),
-  usageInstructionValidation,
+  validate(updateUsageInstructionSchema),
   UsageInstructionController.updateUsageInstruction
 );
 
