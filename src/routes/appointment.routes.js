@@ -1,18 +1,17 @@
 const express = require('express');
-const { param } = require('express-validator');
+
 const AppointmentController = require('../controllers/appointment.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
 const { appointmentSchema } = require('../schemas');
-const { createAppointmentSchema, updateAppointmentSchema } = appointmentSchema;
+const { 
+  createAppointmentSchema, 
+  updateAppointmentSchema,
+  cancelAppointmentSchema 
+} = appointmentSchema;
 const validate = require('../middlewares/validation.middleware');
 
 const router = express.Router();
 
-// Validation cho date param
-const dateParamValidation = [
-  param('date')
-    .isDate().withMessage('Ngày phải đúng định dạng YYYY-MM-DD')
-];
 
 // Tất cả các route đều yêu cầu xác thực
 router.use(authenticate);
@@ -32,7 +31,6 @@ router.get(
 router.get(
   '/by-date/:date',
   authorize(['view_appointments']),
-  dateParamValidation,
   AppointmentController.getAppointmentsByDate
 );
 
@@ -80,6 +78,7 @@ router.put(
 router.patch(
   '/:id/cancel',
   authorize(['cancel_appointment']),
+  validate(cancelAppointmentSchema),
   AppointmentController.cancelAppointment
 );
 

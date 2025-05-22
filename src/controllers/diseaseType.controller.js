@@ -48,6 +48,14 @@ class DiseaseTypeController {
    */
   static async createDiseaseType(req, res, next) {
     try {
+      const { name } = req.body;
+      
+      // Kiểm tra tên loại bệnh đã tồn tại chưa
+      const nameExists = await DiseaseType.isNameExists(name);
+      if (nameExists) {
+        throw new ValidationError('Tên loại bệnh đã tồn tại');
+      }
+      
       const diseaseType = await DiseaseType.create(req.body);
       
       res.status(201).json({
@@ -67,6 +75,16 @@ class DiseaseTypeController {
   static async updateDiseaseType(req, res, next) {
     try {
       const { id } = req.params;
+      const { name } = req.body;
+      
+      // Nếu có cập nhật tên, kiểm tra tên mới có trùng với các loại bệnh khác không
+      if (name) {
+        const nameExists = await DiseaseType.isNameExists(name, id);
+        if (nameExists) {
+          throw new ValidationError('Tên loại bệnh đã tồn tại');
+        }
+      }
+      
       const diseaseType = await DiseaseType.update(id, req.body);
       
       res.status(200).json({

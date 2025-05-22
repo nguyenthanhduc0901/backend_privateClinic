@@ -23,6 +23,7 @@ const phoneRegex = /^(\+?84|0)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9\d)([0-9]{7})$/;
 // Base schema cho patient
 const basePatientSchema = {
   full_name: Joi.string()
+    .trim()
     .max(100)
     .required()
     .messages({
@@ -54,6 +55,7 @@ const basePatientSchema = {
     }),
 
   phone: Joi.string()
+    .trim()
     .pattern(phoneRegex)
     .allow('', null)
     .messages({
@@ -61,7 +63,12 @@ const basePatientSchema = {
     }),
 
   address: Joi.string()
+    .trim()
+    .max(500)
     .allow('', null)
+    .messages({
+      'string.max': 'Địa chỉ không được quá 500 ký tự'
+    })
 };
 
 // Schema cho tạo bệnh nhân mới

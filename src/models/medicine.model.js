@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { NotFoundError, DatabaseError } = require('../utils/apiError');
+const { NotFoundError, DatabaseError, ConflictError } = require('../utils/apiError');
 
 /**
  * Medicine Model
@@ -327,6 +327,30 @@ class Medicine {
     }
     
     return rows[0].max_medicines;
+  }
+
+  /**
+   * Kiểm tra tên thuốc đã tồn tại chưa
+   * @param {string} name - Tên thuốc cần kiểm tra
+   * @param {number} [excludeId=null] - ID thuốc cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<boolean>} true nếu tên đã tồn tại, ngược lại false
+   */
+  static async isNameExists(name, excludeId = null) {
+    if (!name) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM medicines 
+        WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [name];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
   }
 }
 

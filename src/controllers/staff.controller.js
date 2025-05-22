@@ -1,6 +1,7 @@
 const Staff = require('../models/staff.model');
 const { ValidationError } = require('../utils/apiError');
 const { generateToken } = require('../utils/auth');
+const { validationResult } = require('express-validator');
 
 /**
  * StaffController

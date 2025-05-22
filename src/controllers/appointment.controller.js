@@ -68,12 +68,6 @@ class AppointmentController {
    */
   static async createAppointment(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const appointment = await Appointment.create(req.body);
       
       res.status(201).json({
@@ -92,12 +86,6 @@ class AppointmentController {
    */
   static async updateAppointment(req, res, next) {
     try {
-      // Kiểm tra lỗi validation
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Dữ liệu không hợp lệ', errors.array());
-      }
-      
       const { id } = req.params;
       const appointment = await Appointment.update(id, req.body);
       
@@ -118,11 +106,18 @@ class AppointmentController {
   static async cancelAppointment(req, res, next) {
     try {
       const { id } = req.params;
-      const appointment = await Appointment.cancel(id);
+      const { reason } = req.body;
+      
+      // Kiểm tra xem lý do hủy có được cung cấp không
+      if (!reason || typeof reason !== 'string' || reason.trim() === '') {
+        throw new ValidationError('Vui lòng cung cấp lý do hủy lịch hẹn');
+      }
+      
+      const appointment = await Appointment.cancelAppointment(id, reason.trim());
       
       res.status(200).json({
         success: true,
-        message: 'Hủy lịch hẹn thành công',
+        message: 'Đã hủy lịch hẹn thành công',
         data: appointment
       });
     } catch (error) {

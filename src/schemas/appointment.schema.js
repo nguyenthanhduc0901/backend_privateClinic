@@ -148,9 +148,23 @@ const updateAppointmentSchema = Joi.object({
   'object.min': 'Phải cung cấp ít nhất một trường để cập nhật'
 });
 
+// Schema cho việc hủy lịch hẹn
+const cancelAppointmentSchema = Joi.object({
+  reason: Joi.string()
+    .trim()
+    .required()
+    .max(500)
+    .messages({
+      'string.empty': 'Vui lòng nhập lý do hủy lịch hẹn',
+      'any.required': 'Lý do hủy lịch hẹn là bắt buộc',
+      'string.max': 'Lý do không được vượt quá 500 ký tự'
+    })
+});
+
 const appointmentSchema = {
   createAppointmentSchema,
-  updateAppointmentSchema
+  updateAppointmentSchema,
+  cancelAppointmentSchema
 };
 
 module.exports = appointmentSchema;

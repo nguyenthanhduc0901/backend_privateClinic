@@ -50,6 +50,14 @@ class MedicineController {
    */
   static async createMedicine(req, res, next) {
     try {
+      const { name } = req.body;
+      
+      // Kiểm tra tên thuốc đã tồn tại chưa
+      const nameExists = await Medicine.isNameExists(name);
+      if (nameExists) {
+        throw new ValidationError('Tên thuốc đã tồn tại');
+      }
+      
       const medicine = await Medicine.create(req.body);
       
       res.status(201).json({
@@ -69,6 +77,16 @@ class MedicineController {
   static async updateMedicine(req, res, next) {
     try {
       const { id } = req.params;
+      const { name } = req.body;
+      
+      // Nếu có cập nhật tên thuốc, kiểm tra xem tên mới có bị trùng không
+      if (name) {
+        const nameExists = await Medicine.isNameExists(name, id);
+        if (nameExists) {
+          throw new ValidationError('Tên thuốc đã tồn tại');
+        }
+      }
+      
       const medicine = await Medicine.update(id, req.body);
       
       res.status(200).json({

@@ -1,8 +1,7 @@
 const express = require('express');
 const PatientController = require('../controllers/patient.controller');
 const { authenticate, authorize } = require('../middlewares/auth');
-const { patientSchema } = require('../schemas');
-const { createPatientSchema, updatePatientSchema } = patientSchema;
+const { createPatientSchema, updatePatientSchema } = require('../schemas/patient.schema');
 const validate = require('../middlewares/validation.middleware');
 
 const router = express.Router();
@@ -46,6 +45,15 @@ router.put(
   authorize(['update_patient']),
   validate(updatePatientSchema),
   PatientController.updatePatient
+);
+
+// Route: GET /api/patients/:id/medical-history
+// Mô tả: Lấy lịch sử khám bệnh của bệnh nhân
+// Quyền: view_medical_records
+router.get(
+  '/:id/medical-history',
+  authorize(['view_medical_records']),
+  PatientController.getPatientMedicalHistory
 );
 
 // Route: DELETE /api/patients/:id

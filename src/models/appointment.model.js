@@ -299,20 +299,41 @@ class Appointment {
   /**
    * Hủy lịch hẹn
    * @param {Number} id - ID của lịch hẹn
+   * @param {String} reason - Lý do hủy
    * @returns {Promise<Object>} Lịch hẹn sau khi hủy
    */
-  static async cancel(id) {
-    // Kiểm tra lịch hẹn tồn tại
-    await this.findById(id);
+  static async cancelAppointment(id, reason) {
+    // Kiểm tra lịch hẹn tồn tại và lấy thông tin hiện tại
+    const currentAppointment = await this.findById(id);
+    
+    // Kiểm tra nếu lịch hẹn đã bị hủy trước đó
+    if (currentAppointment.status === 'cancelled') {
+      throw new ValidationError('Lịch hẹn đã được hủy trước đó');
+    }
+    
+    // Kiểm tra nếu lịch hẹn đã hoàn thành
+    if (currentAppointment.status === 'completed') {
+      throw new ValidationError('Không thể hủy lịch hẹn đã hoàn thành');
+    }
     
     const query = `
       UPDATE appointment_lists
-      SET status = 'cancelled'
-      WHERE id = $1
-      RETURNING id, patient_id, appointment_date, appointment_time, order_number, status, notes, created_at, updated_at
+      SET 
+        status = 'cancelled',
+        cancellation_reason = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING 
+        id, patient_id, appointment_date, appointment_time, 
+        order_number, status, notes, cancellation_reason,
+        created_at, updated_at
     `;
     
-    const { rows } = await db.query(query, [id]);
+    const { rows } = await db.query(query, [reason, id]);
+    
+    if (rows.length === 0) {
+      throw new NotFoundError('Không tìm thấy lịch hẹn');
+    }
     
     return rows[0];
   }
@@ -352,6 +373,59 @@ class Appointment {
     const { rows } = await db.query(query, [date]);
     
     return parseInt(rows[0].count);
+  }
+
+  /**
+   * Kiểm tra xem đã có lịch hẹn nào trùng thời gian với bác sĩ chưa
+   * @param {Number} staffId - ID của bác sĩ
+   * @param {String} appointmentDate - Ngày hẹn (YYYY-MM-DD)
+   * @param {String} appointmentTime - Giờ hẹn (HH:MM:SS)
+   * @param {Number} [excludeId=null] - ID lịch hẹn cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isTimeSlotBooked(staffId, appointmentDate, appointmentTime, excludeId = null) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM appointment_lists al
+        JOIN medical_records mr ON al.id = mr.appointment_id
+        WHERE mr.staff_id = $1 
+          AND al.appointment_date = $2 
+          AND al.appointment_time = $3
+          AND al.status != 'cancelled'
+          ${excludeId ? 'AND al.id != $4' : ''}
+      ) as exists
+    `;
+    
+    const params = [staffId, appointmentDate, appointmentTime];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Kiểm tra xem bệnh nhân đã có lịch hẹn nào trong khoảng thời gian chưa
+   * @param {Number} patientId - ID của bệnh nhân
+   * @param {String} appointmentDate - Ngày hẹn (YYYY-MM-DD)
+   * @param {Number} [excludeId=null] - ID lịch hẹn cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async hasPatientAppointment(patientId, appointmentDate, excludeId = null) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM appointment_lists
+        WHERE patient_id = $1 
+          AND appointment_date = $2
+          AND status != 'cancelled'
+          ${excludeId ? 'AND id != $3' : ''}
+      ) as exists
+    `;
+    
+    const params = [patientId, appointmentDate];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
   }
 }
 

@@ -530,6 +530,99 @@ class Staff {
       throw error;
     }
   }
+
+  /**
+   * Kiểm tra username đã tồn tại chưa
+   * @param {String} username - Username cần kiểm tra
+   * @param {Number} [excludeId=null] - ID nhân viên cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isUsernameExists(username, excludeId = null) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM staff 
+        WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [username];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Kiểm tra email đã tồn tại chưa
+   * @param {String} email - Email cần kiểm tra
+   * @param {Number} [excludeId=null] - ID nhân viên cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isEmailExists(email, excludeId = null) {
+    if (!email) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM staff 
+        WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [email];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Kiểm tra số điện thoại đã tồn tại chưa
+   * @param {String} phone - Số điện thoại cần kiểm tra
+   * @param {Number} [excludeId=null] - ID nhân viên cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isPhoneExists(phone, excludeId = null) {
+    if (!phone) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM staff 
+        WHERE phone = $1
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [phone];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Kiểm tra trùng lặp
+   * @param {String} field - Trường cần kiểm tra
+   * @param {String} value - Giá trị cần kiểm tra
+   * @param {Number} [excludeId=null] - ID nhân viên cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isExists(field, value, excludeId = null) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM staff 
+        WHERE ${field} = $1
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [value];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
 }
 
 module.exports = Staff;

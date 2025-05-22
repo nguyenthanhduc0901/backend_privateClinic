@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { NotFoundError } = require('../utils/apiError');
+const { NotFoundError, ValidationError } = require('../utils/apiError');
 
 /**
  * Patient Model
@@ -83,8 +83,88 @@ class Patient {
    * @param {Object} data - Dữ liệu bệnh nhân
    * @returns {Promise<Object>} Bệnh nhân mới tạo
    */
+  /**
+   * Kiểm tra số điện thoại đã tồn tại chưa
+   * @param {string} phone - Số điện thoại cần kiểm tra
+   * @param {number} [excludeId] - ID bệnh nhân cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<boolean>} true nếu số điện thoại đã tồn tại
+   */
+  static async checkPhoneExists(phone, excludeId = null) {
+    if (!phone) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM patients 
+        WHERE phone = $1 
+        ${excludeId ? 'AND id != $2' : ''}
+      )
+    `;
+    
+    const params = excludeId ? [phone, excludeId] : [phone];
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Lấy lịch sử khám bệnh của bệnh nhân
+   * @param {number} patientId - ID bệnh nhân
+   * @param {Object} options - Tùy chọn phân trang
+   * @returns {Promise<Object>} Danh sách lịch sử khám bệnh
+   */
+  static async getMedicalHistory(patientId, options = {}) {
+    const { page = 1, limit = 10 } = options;
+    const offset = (page - 1) * limit;
+    
+    const query = `
+      SELECT 
+        m.id, m.diagnosis, m.note, m.created_at as visit_date,
+        d.full_name as doctor_name,
+        COUNT(*) OVER() as total_count
+      FROM medical_records m
+      JOIN staff d ON m.doctor_id = d.id
+      WHERE m.patient_id = $1
+      ORDER BY m.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    
+    const { rows } = await db.query(query, [patientId, limit, offset]);
+    
+    if (rows.length === 0) {
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0
+        }
+      };
+    }
+    
+    const total = parseInt(rows[0].total_count);
+    
+    // Loại bỏ total_count khỏi kết quả trả về
+    const data = rows.map(({ total_count, ...rest }) => rest);
+    
+    return {
+      data,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+  
   static async create(data) {
-    const { full_name, gender, birth_year, phone, address } = data;
+    const { phone } = data;
+    
+    // Kiểm tra số điện thoại trùng lặp
+    const phoneExists = await this.checkPhoneExists(phone);
+    if (phoneExists) {
+      throw new ValidationError('Số điện thoại đã được sử dụng');
+    }
     
     const query = `
       INSERT INTO patients (full_name, gender, birth_year, phone, address)
@@ -92,7 +172,13 @@ class Patient {
       RETURNING id, full_name, gender, birth_year, phone, address, created_at, updated_at
     `;
     
-    const { rows } = await db.query(query, [full_name, gender, birth_year, phone, address]);
+    const { rows } = await db.query(query, [
+      data.full_name,
+      data.gender,
+      data.birth_year,
+      phone || null,
+      data.address || null
+    ]);
     
     return rows[0];
   }
@@ -104,26 +190,55 @@ class Patient {
    * @returns {Promise<Object>} Bệnh nhân sau khi cập nhật
    */
   static async update(id, data) {
-    // Kiểm tra bệnh nhân tồn tại
-    await this.findById(id);
+    const { phone, ...updateData } = data;
     
-    const { full_name, gender, birth_year, phone, address } = data;
+    // Kiểm tra số điện thoại trùng lặp (nếu có cập nhật số điện thoại)
+    if (phone !== undefined) {
+      const phoneExists = await this.checkPhoneExists(phone, id);
+      if (phoneExists) {
+        throw new ValidationError('Số điện thoại đã được sử dụng bởi bệnh nhân khác');
+      }
+    }
+    
+    // Tạo câu lệnh SQL động dựa trên các trường cần cập nhật
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    // Thêm các trường cần cập nhật
+    Object.entries(updateData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        fields.push(`${key} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    });
+    
+    // Thêm số điện thoại nếu có
+    if (phone !== undefined) {
+      fields.push(`phone = $${paramIndex}`);
+      values.push(phone || null);
+      paramIndex++;
+    }
+    
+    // Thêm updated_at
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+    
+    // Thêm điều kiện WHERE
+    values.push(id);
     
     const query = `
       UPDATE patients
-      SET 
-        full_name = COALESCE($1, full_name),
-        gender = COALESCE($2, gender),
-        birth_year = COALESCE($3, birth_year),
-        phone = COALESCE($4, phone),
-        address = COALESCE($5, address)
-      WHERE id = $6
+      SET ${fields.join(', ')}
+      WHERE id = $${paramIndex}
       RETURNING id, full_name, gender, birth_year, phone, address, created_at, updated_at
     `;
     
-    const { rows } = await db.query(query, [
-      full_name, gender, birth_year, phone, address, id
-    ]);
+    const { rows } = await db.query(query, values);
+    
+    if (rows.length === 0) {
+      throw new NotFoundError('Không tìm thấy bệnh nhân');
+    }
     
     return rows[0];
   }
@@ -173,6 +288,55 @@ class Patient {
     const { rows } = await db.query(query, [id]);
     
     return rows;
+  }
+
+  /**
+   * Kiểm tra số điện thoại đã tồn tại chưa
+   * @param {String} phone - Số điện thoại cần kiểm tra
+   * @param {Number} [excludeId=null] - ID bệnh nhân cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isPhoneExists(phone, excludeId = null) {
+    if (!phone) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM patients 
+        WHERE phone = $1
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [phone];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
+   * Kiểm tra trường dữ liệu đã tồn tại chưa
+   * @param {String} field - Tên trường cần kiểm tra
+   * @param {String} value - Giá trị cần kiểm tra
+   * @param {Number} [excludeId=null] - ID bệnh nhân cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu đã tồn tại, false nếu chưa
+   */
+  static async isExists(field, value, excludeId = null) {
+    if (!value) return false;
+    
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM patients 
+        WHERE ${field} = $1
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [value];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
   }
 }
 

@@ -178,6 +178,28 @@ class DiseaseType {
   }
   
   /**
+   * Kiểm tra tên loại bệnh đã tồn tại chưa
+   * @param {String} name - Tên loại bệnh cần kiểm tra
+   * @param {Number} [excludeId=null] - ID loại bệnh cần loại trừ (dùng khi cập nhật)
+   * @returns {Promise<Boolean>} true nếu tên đã tồn tại, ngược lại false
+   */
+  static async isNameExists(name, excludeId = null) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM disease_types 
+        WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+        ${excludeId ? 'AND id != $2' : ''}
+      ) as exists
+    `;
+    
+    const params = [name];
+    if (excludeId) params.push(excludeId);
+    
+    const { rows } = await db.query(query, params);
+    return rows[0].exists;
+  }
+
+  /**
    * Lấy số lượng loại bệnh tối đa từ cài đặt
    * @returns {Promise<Number>} Số lượng tối đa
    */
