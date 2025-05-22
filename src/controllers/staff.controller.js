@@ -164,13 +164,20 @@ class StaffController {
   /**
    * Đổi mật khẩu
    * @route POST /api/staff/change-password
+   * @description Cho phép nhân viên đổi mật khẩu của chính họ
+   * @body {string} current_password - Mật khẩu hiện tại
+   * @body {string} new_password - Mật khẩu mới
+   * @body {string} confirm_password - Xác nhận mật khẩu mới
    */
   static async changePassword(req, res, next) {
     try {
-      const { currentPassword, newPassword } = req.body;
+      const { current_password, new_password } = req.body;
+      
+      // Lấy ID của nhân viên từ token đã xác thực
       const staffId = req.user.id;
       
-      await Staff.changePassword(staffId, currentPassword, newPassword);
+      // Gọi model để xử lý đổi mật khẩu
+      await Staff.changePassword(staffId, current_password, new_password);
       
       res.status(200).json({
         success: true,

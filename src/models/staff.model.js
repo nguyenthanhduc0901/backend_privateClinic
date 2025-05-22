@@ -442,18 +442,27 @@ class Staff {
   /**
    * Thay đổi mật khẩu nhân viên
    * @param {Number} id - ID của nhân viên
+   * @param {String} currentPassword - Mật khẩu hiện tại
    * @param {String} newPassword - Mật khẩu mới
    * @returns {Promise<Boolean>} Kết quả thay đổi mật khẩu
+   * @throws {ValidationError} Nếu mật khẩu hiện tại không đúng
    */
-  static async changePassword(id, newPassword) {
-    // Kiểm tra nhân viên tồn tại
-    await this.findById(id);
+  static async changePassword(id, currentPassword, newPassword) {
+    // Lấy thông tin nhân viên kèm mật khẩu
+    const staff = await this.findById(id, true);
+    
+    // Kiểm tra mật khẩu hiện tại
+    const isMatch = await bcrypt.compare(currentPassword, staff.password);
+    if (!isMatch) {
+      throw new ValidationError('Mật khẩu hiện tại không đúng');
+    }
     
     // Hash mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
     
-    const query = 'UPDATE staff SET password = $1 WHERE id = $2';
+    // Cập nhật mật khẩu mới
+    const query = 'UPDATE staff SET password = $1, updated_at = NOW() WHERE id = $2';
     await db.query(query, [hashedPassword, id]);
     
     return true;

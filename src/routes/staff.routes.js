@@ -72,23 +72,12 @@ router.put(
   StaffController.updateStaff
 );
 
-// Route: PATCH /api/staff/:id/change-password
+// Route: POST /api/staff/change-password
 // Mô tả: Đổi mật khẩu nhân viên
-// Quyền: update_staff hoặc chính nhân viên đó
-router.patch(
-  '/:id/change-password',
+// Quyền: Chỉ chính nhân viên đó mới được đổi mật khẩu của mình
+router.post(
+  '/change-password',
   validate(changePasswordSchema),
-  (req, res, next) => {
-    // Cho phép admin hoặc chính nhân viên đó đổi mật khẩu
-    if (req.user.roleId === 1 || req.user.id === parseInt(req.params.id)) {
-      next();
-    } else {
-      res.status(403).json({
-        success: false,
-        message: 'Không có quyền thực hiện hành động này'
-      });
-    }
-  },
   StaffController.changePassword
 );
 

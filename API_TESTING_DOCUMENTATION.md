@@ -85,7 +85,7 @@ Thiết lập các môi trường kiểm thử sau:
 
 ### 1. Authentication APIs
 
-#### 1.1 Đăng nhập: POST /api/auth/login
+#### 1.1 Đăng nhập: POST /api/staff/login
 
 **Input**:
 ```json
@@ -99,14 +99,23 @@ Thiết lập các môi trường kiểm thử sau:
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "username": "admin01",
-    "full_name": "Admin User",
-    "role_id": 1,
-    "role_name": "Admin"
+  "message": "Đăng nhập thành công",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "username": "admin01",
+      "fullName": "Admin User",
+      "email": "admin@example.com",
+      "phone": "0987654321",
+      "role": {
+        "id": 1,
+        "name": "Admin"
+      },
+      "isActive": true
+    }
   }
+}
 }
 ```
 
@@ -150,26 +159,50 @@ Authorization: Bearer <jwt_token>
 - ❌ **TC006**: Token không hợp lệ.
 - ❌ **TC007**: Token đã hết hạn.
 
-#### 1.3 Đổi mật khẩu: POST /api/auth/change-password
+#### 1.2 Đổi mật khẩu: POST /api/staff/change-password
 
 **Headers**:
 ```
 Authorization: Bearer <jwt_token>
+Content-Type: application/json
 ```
 
 **Input**:
 ```json
 {
-  "currentPassword": "123456",
-  "newPassword": "new123456"
+  "current_password": "123456",
+  "new_password": "NewSecurePassword123!",
+  "confirm_password": "NewSecurePassword123!"
 }
 ```
 
-**Expected Output**:
+**Validation Rules**:
+- `current_password`: Bắt buộc, phải khớp với mật khẩu hiện tại
+- `new_password`: Bắt buộc, ít nhất 6 ký tự, không được trùng với mật khẩu hiện tại
+- `confirm_password`: Bắt buộc, phải khớp với new_password
+
+**Expected Output (Thành công)**:
 ```json
 {
   "success": true,
-  "message": "Mật khẩu đã được thay đổi thành công"
+  "message": "Đổi mật khẩu thành công"
+}
+```
+
+**Error Responses**:
+1. Mật khẩu hiện tại không đúng:
+```json
+{
+  "success": false,
+  "message": "Mật khẩu hiện tại không đúng"
+}
+```
+
+2. Xác thực thất bại (thiếu token hoặc token không hợp lệ):
+```json
+{
+  "success": false,
+  "message": "Chưa xác thực"
 }
 ```
 
